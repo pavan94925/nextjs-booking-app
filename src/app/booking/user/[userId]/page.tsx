@@ -4,25 +4,33 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
 export default function BookingPage() {
-  const { userId } = useParams(); // Now we get userId from the URL
+  const { userId } = useParams();
   const [formData, setFormData] = useState({
     date: '',
     time: '',
-    notes: ''
+    notes: '',
+    bookedByName: '',
+    bookedByEmail: ''
   });
 
   const [availableSlots, setAvailableSlots] = useState([]);
 
-   const fetchSlots = async () => {
-      const res = await fetch(`/api/availability/${userId}`);
+  const fetchSlots = async () => {
+    try {
+      // Fixed: Use correct API endpoint with query parameter
+      const res = await fetch(`/api/availability?user_id=${userId}`);
       const data = await res.json();
+      console.log('Fetched slots:', data);
       setAvailableSlots(data.slots || []);
-    };
+    } catch (error) {
+      console.error('Error fetching slots:', error);
+    }
+  };
 
   useEffect(() => {
-  if(userId){
-fetchSlots();
-  }
+    if (userId) {
+      fetchSlots();
+    }
   }, [userId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -32,22 +40,41 @@ fetchSlots();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const res = await fetch(`/api/booking`, {
-      method: 'POST',
-      body: JSON.stringify({
-        ...formData,
-        hostUserId: userId,
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    // Validation
+    if (!formData.bookedByName || !formData.bookedByEmail) {
+      alert('Please fill in your name and email');
+      return;
+    }
 
-    const data = await res.json();
-    if (res.ok) {
-      alert('Booking confirmed!');
-    } else {
-      alert(data.message || 'Booking failed');
+    try {
+      const res = await fetch(`/api/booking`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...formData,
+          hostUserId: userId,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert('Booking confirmed!');
+        setFormData({
+          date: '',
+          time: '',
+          notes: '',
+          bookedByName: '',
+          bookedByEmail: ''
+        });
+        fetchSlots(); // Refresh slots
+      } else {
+        alert(data.message || 'Booking failed');
+      }
+    } catch (error) {
+      console.error('Booking error:', error);
+      alert('Booking failed');
     }
   };
 
@@ -64,7 +91,7 @@ fetchSlots();
           <ul className="list-disc list-inside">
             {availableSlots.map((slot: any, idx) => (
               <li key={idx}>
-                {slot.date} at {slot.time}
+                {slot.date} from {slot.startTime} to {slot.endTime} - {slot.description}
               </li>
             ))}
           </ul>
@@ -73,6 +100,24 @@ fetchSlots();
 
       {/* Booking Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
+        <input
+          type="text"
+          name="bookedByName"
+          value={formData.bookedByName}
+          onChange={handleChange}
+          placeholder="Your Name"
+          className="w-full border p-2 rounded"
+          required
+        />
+        <input
+          type="email"
+          name="bookedByEmail"
+          value={formData.bookedByEmail}
+          onChange={handleChange}
+          placeholder="Your Email"
+          className="w-full border p-2 rounded"
+          required
+        />
         <input
           type="date"
           name="date"
