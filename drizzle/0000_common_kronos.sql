@@ -1,4 +1,4 @@
-CREATE TABLE "availability" (
+CREATE TABLE IF NOT EXISTS "availability" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" varchar(255) NOT NULL,
 	"date" date NOT NULL,
@@ -6,15 +6,17 @@ CREATE TABLE "availability" (
 	"end_time" time NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "bookings" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"availability_id" integer NOT NULL,
-	"booked_by_name" varchar(255) NOT NULL,
-	"booked_by_email" varchar(255) NOT NULL,
-	"booked_time" timestamp DEFAULT now()
+CREATE TABLE IF NOT EXISTS "bookings" (
+  "id" SERIAL PRIMARY KEY,
+  "availability_id" INTEGER NOT NULL REFERENCES availability("id") ON DELETE CASCADE,
+  "booked_by_name" VARCHAR(255) NOT NULL,
+  "booked_by_email" VARCHAR(255) NOT NULL,
+  "booking_date" DATE NOT NULL,
+  "booking_time" TIME NOT NULL,
+  "created_at" TIMESTAMP DEFAULT NOW()
 );
 --> statement-breakpoint
-CREATE TABLE "user_profiles" (
+CREATE TABLE IF NOT EXISTS "user_profiles" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" varchar(255) NOT NULL,
 	"full_name" varchar(255) NOT NULL,

@@ -91,49 +91,59 @@ export default function DashboardPage() {
   };
 
   // Submit availability (handles both creation and editing)
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+ const handleSubmit = async (e: React.FormEvent) => {
+   e.preventDefault()
 
-    // Determine HTTP method and URL based on whether we are editing or creating
-    const method = editingSlot ? "PUT" : "POST";
-    const url = editingSlot ? `/api/availability/${editingSlot.id}` : "/api/availability";
+   // Determine HTTP method and URL based on whether we are editing or creating
+   const method = editingSlot ? 'PUT' : 'POST'
+   const url = editingSlot
+     ? `/api/availability/${editingSlot.id}`
+     : '/api/availability'
 
-    try {
-      const res = await fetch(url, {
-        method: method,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ date, startTime, endTime, description }),
-        credentials: "include"
-      });
+   try {
+     // Create request body - include user_id for both create and edit operations
+     const requestBody = {
+       date,
+       startTime,
+       endTime,
+       description,
+       user_id: user?.id, // Add user_id to ensure we're updating the correct user's slot
+     }
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
-      }
+     const res = await fetch(url, {
+       method: method,
+       headers: {
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify(requestBody), // Use the requestBody object
+       credentials: 'include',
+     })
 
-      const data = await res.json();
-      console.log("API response:", data);
+     if (!res.ok) {
+       const errorData = await res.json()
+       throw new Error(errorData.message || `HTTP error! status: ${res.status}`)
+     }
 
-      // Refresh slots after successful operation
-      if (user?.id) {
-        await fetchSlots(user.id);
-      }
+     const data = await res.json()
+     console.log('API response:', data)
 
-      // Reset form states and close form after successful submission
-      setDate("");
-      setStartTime("");
-      setEndTime("");
-      setDescription("");
-      setEditingSlot(null); // Clear editing slot state
-      setShowForm(false);
-    } catch (error) {
-      console.error("Error submitting availability:", error);
-      alert(`Failed to save availability: ${(error as Error).message}`);
-    }
-  };
+     // Refresh slots after successful operation
+     if (user?.id) {
+       await fetchSlots(user.id)
+     }
 
+     // Reset form states and close form after successful submission
+     setDate('')
+     setStartTime('')
+     setEndTime('')
+     setDescription('')
+     setEditingSlot(null) // Clear editing slot state
+     setShowForm(false)
+   } catch (error) {
+     console.error('Error submitting availability:', error)
+     alert(`Failed to save availability: ${(error as Error).message}`)
+   }
+ }
   // Share slot handler
   const handleShare = (userId: number | undefined) => {
     if (!userId) {

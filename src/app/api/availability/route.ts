@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 
 export async function POST(req: Request) {
   const cookieStore = cookies(); // No need to await cookies() directly
-  const userId = cookieStore.get("userId")?.value;
+  const userId = (await cookieStore).get("userId")?.value;
 
   console.log("POST Request - Cookie userId:", userId);
 
@@ -89,3 +89,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to fetch availability", details: (error as Error).message }, { status: 500 });
   }
 }
+

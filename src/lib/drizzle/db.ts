@@ -3,10 +3,10 @@ import postgres from 'postgres'
 import * as schema from './schema'
 
 // Load environment variables from `.env.local`
-const connectionString = process.env.DATABASE_URL as string
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is not set')
+}
 
-// Create the SQL client using Supabase DB URL
-const client = postgres(connectionString, { ssl: 'require' })
-
-// Export drizzle connection
-export const db = drizzle(client, { schema })
+const connectionString = process.env.DATABASE_URL
+const client = postgres(connectionString)
+export const db = drizzle({client, schema})
