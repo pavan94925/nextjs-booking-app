@@ -1,38 +1,55 @@
+// app/reset-password/page.tsx
 'use client';
+import { useState } from 'react';
+import { resetPassword } from '@/actions/authActions';
+import { useRouter } from 'next/navigation';
 
-import { useState } from "react";
-import { forgotPassword } from "@/actions/authActions";
-
-export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+export default function ResetPasswordPage() {
+  const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await forgotPassword(email);
-    setMessage(result);
+    const res = await resetPassword(email, newPassword);
+    
+    if (res.success) {
+      alert("Password reset successfully!");
+      router.push('/login');
+    } else {
+      setMessage(res.error || "Reset failed");
+    }
   };
 
   return (
-    <div className="max-w-md mx-auto mt-20 p-4 border rounded">
-      <h2 className="text-2xl font-bold mb-4">🔐 Forgot Password</h2>
+    <div className="max-w-md mx-auto mt-20 p-6 border rounded">
+      <h2 className="text-2xl font-bold mb-4">Reset Password</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="email"
-          className="w-full border px-3 py-2 rounded"
-          placeholder="Enter your email"
+          placeholder="Your email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-2 border rounded"
           required
         />
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+        <input
+          type="password"
+          placeholder="New password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          className="w-full p-2 border rounded"
+          required
+        />
+        <button 
+          type="submit" 
+          className="w-full bg-blue-600 text-white py-2 rounded"
         >
-          Submit
+          Reset Password
         </button>
       </form>
-      {message && <p className="mt-4 text-sm text-gray-600">{message}</p>}
+      {message && <p className="mt-4 text-red-500">{message}</p>}
     </div>
   );
 }

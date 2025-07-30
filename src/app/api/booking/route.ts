@@ -1,7 +1,7 @@
 // app/api/booking/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import {db} from '../../../lib/drizzle/db' // Adjust path to your db instance
-import { availability, bookings } from '../../../lib/drizzle/schema' // Adjust path to your schema
+import {db} from '../../../lib/drizzle/db' 
+import { availability, bookings } from '../../../lib/drizzle/schema' 
 import { eq } from 'drizzle-orm'
 
 

@@ -7,8 +7,8 @@ interface Booking {
   availabilityId: number
   bookedByName: string
   bookedByEmail: string
-  startTime: string // This will be the booking time
-  createdAt: string // ISO string
+  startTime: string
+  createdAt: string
   slotInfo?: {
     date: string
     startTime: string

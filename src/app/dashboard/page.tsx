@@ -10,6 +10,7 @@ interface Slot {
   startTime: string;
   endTime: string;
   description: string;
+  isBooked?: boolean;
   // Add any other properties your slot might have, e.g., userId
 }
 
@@ -30,6 +31,35 @@ export default function DashboardPage() {
   const [endTime, setEndTime] = useState("");
   const [description, setDescription] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]); // Use the Slot interface for slots array
+
+  // ✅ NEW: Filter states for dropdown
+  const [filter, setFilter] = useState('all'); // Stores which filter is selected: 'all', 'booked', 'available'
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Stores if dropdown is open/closed
+
+  // slots shows based on that particular one
+  const filteredSlots = slots.filter(slot => {
+    if (filter === 'all') {
+      return true; 
+    }
+    if (filter === 'booked') {
+      return slot.isBooked === true; 
+    }
+    if (filter === 'available') {
+      return slot.isBooked !== true; 
+    }
+    return true;
+  });
+
+  // ✅ NEW: Function to handle dropdown selection
+  const handleFilterChange = (newFilter: string) => {
+    setFilter(newFilter); // Update the filter
+    setDropdownOpen(false); // Close the dropdown
+  };
+
+  // ✅ NEW: Function to toggle dropdown open/close
+  const toggleDropdown = () => {
+    setDropdownOpen(!dropdownOpen); // If open, close it. If closed, open it
+  };
 
   // ✅ Function to fetch user's slots
   const fetchSlots = async (userId: number) => {
@@ -80,7 +110,7 @@ export default function DashboardPage() {
     router.replace("/login");
   };
 
-  // Handle Edit Button Click
+  //  
   const handleEdit = (slot: Slot) => {
     setEditingSlot(slot); // Set the slot being edited
     setDate(slot.date);
@@ -246,41 +276,128 @@ export default function DashboardPage() {
 
         {/* Availability section */}
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">Your Availability</h2>
-          {slots.length > 0 ? (
+          {/* ✅ NEW: Title with Filter Dropdown */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-gray-800">Your Availability</h2>
+            
+            {/* ✅ NEW: Filter Dropdown */}
+            <div className="relative">
+              {/* Dropdown Button */}
+              <button
+                onClick={toggleDropdown}
+                className="bg-white border border-gray-300 rounded-lg px-4 py-2 flex items-center gap-2 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {/* Show current filter text */}
+                <span className="text-gray-700 font-medium">
+                  {filter === 'all' && 'All'}
+                  {filter === 'booked' && 'Booked'}
+                  {filter === 'available' && 'Available'}
+                </span>
+                {/* Arrow that rotates when dropdown opens */}
+                <span className={`text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>
+                  ▼
+                </span>
+              </button>
+              
+              {/* Dropdown Menu - Only shows when dropdownOpen is true */}
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                  {/* All Option */}
+                  <button
+                    onClick={() => handleFilterChange('all')}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-50 first:rounded-t-lg ${
+                      filter === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                    }`}
+                  >
+                    All
+                  </button>
+                  
+                  {/* Booked Option */}
+                  <button
+                    onClick={() => handleFilterChange('booked')}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${
+                      filter === 'booked' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                    }`}
+                  >
+                    Booked
+                  </button>
+                  
+                  {/* Available Option */}
+                  <button
+                    onClick={() => handleFilterChange('available')}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-50 last:rounded-b-lg ${
+                      filter === 'available' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                    }`}
+                  >
+                    Available
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ✅ MODIFIED: Use filteredSlots instead of slots */}
+          {filteredSlots.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {slots.map((slot: Slot) => (
-                <div key={slot.id} className="bg-white shadow-lg p-6 rounded-lg border border-gray-200">
+              {filteredSlots.map((slot: Slot) => (
+                <div key={slot.id} className={`shadow-lg p-6 rounded-lg border relative ${
+                  slot.isBooked ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+                }`}>
+                  
+                  {/* Booked/Available indicator */}
+                  {slot.isBooked ? (
+                    <div className="absolute top-2 right-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                      BOOKED
+                    </div>
+                  ) : (
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                      AVAILABLE
+                    </div>
+                  )}
+                  
                   <p className="mb-2"><strong className="text-gray-700">Date:</strong> <span className="text-gray-900">{slot.date}</span></p>
                   <p className="mb-2"><strong className="text-gray-700">Start:</strong> <span className="text-gray-900">{slot.startTime}</span></p>
                   <p className="mb-2"><strong className="text-gray-700">End:</strong> <span className="text-gray-900">{slot.endTime}</span></p>
                   <p className="mb-4"><strong className="text-gray-700">Description:</strong> <span className="text-gray-900">{slot.description}</span></p>
+                  
                   <div className="flex gap-3 mt-4">
+                    {/* Always show Share button */}
                     <button
                       onClick={() => handleShare(user?.id)}
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 text-sm shadow-md"
                     >
-                      Share
+                      {slot.isBooked ? 'View Link' : 'Share'}
                     </button>
-                    <button
-                      onClick={() => handleEdit(slot)}
-                      className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition duration-200 text-sm shadow-md"
-                    >
-                      Edit
-                    </button>
-                    {/* --- NEW: Delete Button --- */}
-                    <button
-                      onClick={() => handleDeleteClick(slot.id)}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-200 text-sm shadow-md"
-                    >
-                      Delete
-                    </button>
+                    
+                    {/* Only show Edit and Delete buttons if slot is NOT booked */}
+                    {!slot.isBooked && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(slot)}
+                          className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition duration-200 text-sm shadow-md"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(slot.id)}
+                          className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-200 text-sm shadow-md"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-600 text-lg">No availability slots yet. Click "Create Availability" to add one!</p>
+            <p className="text-gray-600 text-lg">
+              {/* ✅ NEW: Dynamic message based on filter */}
+              {filter === 'all' 
+                ? "No availability slots yet. Click 'Create Availability' to add one!" 
+                : `No ${filter} slots found.`
+              }
+            </p>
           )}
         </div>
       </div>

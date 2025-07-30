@@ -4,10 +4,7 @@ import { db } from "@/lib/drizzle/db";
 import { user_profiles } from "@/lib/drizzle/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-// import crypto from "crypto";
 import { setUserSession } from "@/lib/drizzle/session";
-
-// ✅ No need to import randomUUID
 
 
 export async function registerUser(form: {
@@ -86,18 +83,25 @@ export async function loginUser(form: {
   };
 }
 
-
-
 // 3. Forgot Password
-export async function forgotPassword(email: string) {
+export async function resetPassword(email: string, newPassword: string) {
+  // 1. Find user by email
   const user = await db
     .select()
     .from(user_profiles)
-    .where(eq(user_profiles.email, email.toLowerCase()));
+    .where(eq(user_profiles.email, email))
+    .then(res => res[0]);
 
-  if (user.length === 0) {
-    return "❌ No account with that email";
-  }
+  if (!user) return { error: "No account with that email" };
 
-  return "✅ Password reset link will be sent (not implemented)";
+  // 2. Hash new password
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  // 3. Update password in DB
+  await db
+    .update(user_profiles)
+    .set({ password: hashedPassword })
+    .where(eq(user_profiles.email, email));
+
+  return { success: true };
 }

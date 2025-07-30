@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db } from "@/lib/drizzle/db";
-import { availability } from "@/lib/drizzle/schema";
-import { eq } from "drizzle-orm";
+import { availability, bookings } from "@/lib/drizzle/schema"; // ✅ Add bookings here
+import { eq, inArray } from "drizzle-orm";
 
 export async function POST(req: Request) {
   const cookieStore = cookies(); // No need to await cookies() directly
@@ -53,8 +53,11 @@ export async function GET(req: Request) {
 
   // Accept both user_id and userId for compatibility
   const userId = searchParams.get("user_id") || searchParams.get("userId");
+  // Check if we should exclude booked slots (for booking page)  
+  const excludeBooked = searchParams.get("exclude_booked") === "true";
 
   console.log("GET Request - Requested userId:", userId);
+  console.log("GET Request - Exclude booked:", excludeBooked);
 
   if (!userId) {
     return NextResponse.json({ error: "Missing user_id parameter" }, { status: 400 });
@@ -67,6 +70,7 @@ export async function GET(req: Request) {
   }
 
   try {
+    // First, get all availability slots for the user
     const slots = await db
       .select()
       .from(availability)
@@ -74,12 +78,33 @@ export async function GET(req: Request) {
 
     console.log("Found slots from DB:", slots);
 
-    // Format startTime and endTime from DB (HH:MM:SS) to frontend's expected HH:MM
-    const formattedSlots = slots.map(slot => ({
+    // Then, get all bookings for these slots to check which ones are booked
+    const slotIds = slots.map(slot => slot.id);
+    
+    let bookedSlotIds: number[] = [];
+    if (slotIds.length > 0) {
+      const confirmedBookings = await db
+        .select({ availabilityId: bookings.availabilityId })
+        .from(bookings)
+        .where(inArray(bookings.availabilityId, slotIds));
+      
+      bookedSlotIds = confirmedBookings.map(booking => booking.availabilityId);
+      console.log("Booked slot IDs:", bookedSlotIds);
+    }
+
+    // Format slots and add booking status
+    let formattedSlots = slots.map(slot => ({
       ...slot,
       startTime: slot.startTime ? slot.startTime.substring(0, 5) : '', // Trim to HH:MM
       endTime: slot.endTime ? slot.endTime.substring(0, 5) : '',       // Trim to HH:MM
+      isBooked: bookedSlotIds.includes(slot.id), // Check if this slot is booked
     }));
+
+    // If excludeBooked is true (for booking page), filter out booked slots
+    if (excludeBooked) {
+      formattedSlots = formattedSlots.filter(slot => !slot.isBooked);
+      console.log("Filtered available slots for booking page:", formattedSlots);
+    }
 
     console.log("Formatted slots for frontend:", formattedSlots);
 
@@ -89,4 +114,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to fetch availability", details: (error as Error).message }, { status: 500 });
   }
 }
-

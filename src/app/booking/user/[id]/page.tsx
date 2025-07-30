@@ -52,7 +52,7 @@ export default function BookUserPage() {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`/api/availability?user_id=${userId}`)
+        const res = await fetch(`/api/availability?user_id=${userId}&exclude_booked=true`)
         if (!res.ok) {
           const errorText = await res.text()
           throw new Error(
