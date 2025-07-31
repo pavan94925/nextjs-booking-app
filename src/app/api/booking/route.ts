@@ -1,4 +1,4 @@
-// app/api/booking/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import {db} from '../../../lib/drizzle/db' 
 import { availability, bookings } from '../../../lib/drizzle/schema' 
@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
   try {
     const body: BookingRequest = await request.json()
 
-    // Validate required fields
     const {
       availabilityId,
       bookedByName,
@@ -39,7 +38,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(bookedByEmail)) {
       return NextResponse.json(
@@ -50,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Booking request received:', body)
 
-    // Insert booking into database
+
     try {
       const newBooking = await db.insert(bookings).values({
         availabilityId: availabilityId,
@@ -62,7 +60,6 @@ export async function POST(request: NextRequest) {
 
       console.log('Booking saved to database:', newBooking[0])
 
-      // Return success response with actual booking data
       return NextResponse.json({
         success: true,
         message: 'Booking confirmed successfully',
@@ -84,14 +81,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Handle unsupported methods
-// export async function GET() {
-//   return NextResponse.json({ message: 'Method not allowed' }, { status: 405 })
-// }
-
 export async function GET(request: NextRequest) {
   try {
-    // Get user_id from query params
+  
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('user_id')
 
@@ -102,7 +94,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch bookings for availability slots that belong to this user
     const userBookings = await db
       .select({
         id: bookings.id,
@@ -112,7 +103,6 @@ export async function GET(request: NextRequest) {
         bookingDate: bookings.bookingDate,
         bookingTime: bookings.bookingTime,
         createdAt: bookings.created_at,
-        // Include availability slot details
         slotDate: availability.date,
         slotStartTime: availability.startTime,
         slotEndTime: availability.endTime,
@@ -122,15 +112,13 @@ export async function GET(request: NextRequest) {
       .innerJoin(availability, eq(bookings.availabilityId, availability.id))
       .where(eq(availability.userId, parseInt(userId)))
 
-    // Transform the data to match your frontend interface
     const transformedBookings = userBookings.map((booking) => ({
       id: booking.id,
       availabilityId: booking.availabilityId,
       bookedByName: booking.bookedByName,
       bookedByEmail: booking.bookedByEmail,
-      startTime: booking.bookingTime, // Using booking time as startTime
+      startTime: booking.bookingTime, 
       createdAt: booking.createdAt?.toISOString() || new Date().toISOString(),
-      // Additional slot info for reference
       slotInfo: {
         date: booking.slotDate,
         startTime: booking.slotStartTime,

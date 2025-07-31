@@ -6,25 +6,23 @@ import { useParams } from 'next/navigation'
 interface AvailabilitySlot {
   id: number
   date: string
-  startTime: string // HH:MM
-  endTime: string // HH:MM
+  startTime: string 
+  endTime: string 
   description: string
 }
 
 export default function BookUserPage() {
   const params = useParams()
-  // --- CRITICAL DEBUGGING LOG ---
-  // This MUST show { id: '1' } in your browser console when you visit /booking/user/1
+
   console.log('useParams() result:', params)
 
-  // Safely extract userId. If params.id is not a string, it will be null.
+  
   const userId = params && typeof params.id === 'string' ? params.id : null
 
   const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Form states for booking
   const [selectedAvailabilityId, setSelectedAvailabilityId] = useState<
     number | null
   >(null)
@@ -34,9 +32,7 @@ export default function BookUserPage() {
   const [bookingTime, setBookingTime] = useState('')
 
   useEffect(() => {
-    // This guard checks if userId is null/undefined.
-    // If the console.log above shows { id: '1' }, but this still triggers,
-    // it means userId is somehow not being set correctly from params.id.
+
     if (!userId) {
       console.log(
         'useEffect: userId is not yet available or valid. Skipping fetch.'
@@ -46,7 +42,7 @@ export default function BookUserPage() {
       return
     }
 
-    console.log('useEffect: Valid userId found:', userId) // This should now log if the above console.log worked
+    console.log('useEffect: Valid userId found:', userId)
 
     const fetchAvailableSlots = async () => {
       setLoading(true)
@@ -70,7 +66,7 @@ export default function BookUserPage() {
     }
 
     fetchAvailableSlots()
-  }, [userId]) // Dependency array: re-runs when userId changes (i.e., when it becomes available)
+  }, [userId]) 
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -103,7 +99,6 @@ export default function BookUserPage() {
       console.log('Booking successful:', data)
       alert('Your booking has been confirmed!')
 
-      // Clear the form
       setSelectedAvailabilityId(null)
       setBookedByName('')
       setBookedByEmail('')
@@ -154,7 +149,7 @@ export default function BookUserPage() {
                       checked={selectedAvailabilityId === slot.id}
                       onChange={() => {
                         setSelectedAvailabilityId(slot.id)
-                        setBookingDate(slot.date) // Pre-fill date from selected slot
+                        setBookingDate(slot.date) 
                       }}
                       className="form-radio h-4 w-4 text-blue-600"
                     />

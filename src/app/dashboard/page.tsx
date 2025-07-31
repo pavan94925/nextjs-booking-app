@@ -3,330 +3,338 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-// Define an interface for your slot data for better type safety
-interface Slot {
-  id: number; // Assuming your slots have an ID
+interface TimeSlot {
+  id: number;
   date: string;
   startTime: string;
   endTime: string;
   description: string;
   isBooked?: boolean;
-  // Add any other properties your slot might have, e.g., userId
 }
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<{ id?: number; full_name?: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingSlot, setEditingSlot] = useState<Slot | null>(null); // State for the slot being edited
+  
+  interface User {
+    id: number;
+    full_name?: string;
+    // add other user properties if needed
+  }
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [allTimeSlots, setAllTimeSlots] = useState<TimeSlot[]>([]);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [slotBeingEdited, setSlotBeingEdited] = useState<TimeSlot | null>(null);
+  
+  const [inputDate, setInputDate] = useState("");
+  const [inputStartTime, setInputStartTime] = useState("");
+  const [inputEndTime, setInputEndTime] = useState("");
+  const [inputDescription, setInputDescription] = useState("");
+  
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  
+  const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
+  const [slotToDelete, setSlotToDelete] = useState<number | null>(null);
 
-  // New states for delete functionality
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [slotToDeleteId, setSlotToDeleteId] = useState<number | null>(null);
-
-  // Form states
-  const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [description, setDescription] = useState("");
-  const [slots, setSlots] = useState<Slot[]>([]); // Use the Slot interface for slots array
-
-  // ✅ NEW: Filter states for dropdown
-  const [filter, setFilter] = useState('all'); // Stores which filter is selected: 'all', 'booked', 'available'
-  const [dropdownOpen, setDropdownOpen] = useState(false); // Stores if dropdown is open/closed
-
-  // slots shows based on that particular one
-  const filteredSlots = slots.filter(slot => {
-    if (filter === 'all') {
-      return true; 
+  function getFilteredSlots() {
+    if (selectedFilter === 'all') {
+      return allTimeSlots;
     }
-    if (filter === 'booked') {
-      return slot.isBooked === true; 
+    if (selectedFilter === 'booked') {
+      return allTimeSlots.filter(slot => slot.isBooked === true);
     }
-    if (filter === 'available') {
-      return slot.isBooked !== true; 
+    if (selectedFilter === 'available') {
+      return allTimeSlots.filter(slot => slot.isBooked !== true);
     }
-    return true;
-  });
+    return allTimeSlots;
+  }
 
-  // ✅ NEW: Function to handle dropdown selection
-  const handleFilterChange = (newFilter: string) => {
-    setFilter(newFilter); // Update the filter
-    setDropdownOpen(false); // Close the dropdown
-  };
+  function changeFilter(newFilter: string) {
+    setSelectedFilter(newFilter);
+    setIsFilterDropdownOpen(false);
+  }
 
-  // ✅ NEW: Function to toggle dropdown open/close
-  const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen); // If open, close it. If closed, open it
-  };
+  function toggleFilterDropdown() {
+    setIsFilterDropdownOpen(!isFilterDropdownOpen);
+  }
 
-  // ✅ Function to fetch user's slots
-  const fetchSlots = async (userId: number) => {
+  async function getUserTimeSlots(userId: number) {
     try {
-      const res = await fetch(`/api/availability?user_id=${userId}`);
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+      const response = await fetch(`/api/availability?user_id=${userId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
       }
-      const data = await res.json();
-      setSlots(data.slots || []);
+      
+      const data = await response.json();
+      setAllTimeSlots(data.slots || []);
+      
     } catch (error) {
-      console.error("Error fetching availability:", error);
-      setSlots([]);
+      console.error("Failed to get time slots:", error);
+      setAllTimeSlots([]);
     }
-  };
+  }
 
-  // ✅ Check user on load
   useEffect(() => {
-    const checkUser = () => {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
+    function checkIfUserLoggedIn() {
+      const savedUser = localStorage.getItem("user");
+      
+      if (savedUser) {
         try {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-          console.log("Parsed user:", parsedUser);
-          if (parsedUser.id) {
-            fetchSlots(parsedUser.id);
+          const user = JSON.parse(savedUser);
+          setCurrentUser(user);
+          console.log("User found:", user);
+          
+          if (user.id) {
+            getUserTimeSlots(user.id);
           }
         } catch (error) {
-          console.error("Invalid user JSON in localStorage:", error);
+          console.error("Invalid user data:", error);
           localStorage.removeItem("user");
           router.replace("/login");
         }
       } else {
         router.replace("/login");
       }
-      setLoading(false);
-    };
+      
+      setIsPageLoading(false);
+    }
 
     if (typeof window !== "undefined") {
-      checkUser();
+      checkIfUserLoggedIn();
     }
   }, [router]);
 
-  // ✅ Logout handler
-  const handleLogout = () => {
+  function logUserOut() {
     localStorage.removeItem("user");
     router.replace("/login");
-  };
+  }
 
-  //  
-  const handleEdit = (slot: Slot) => {
-    setEditingSlot(slot); // Set the slot being edited
-    setDate(slot.date);
-    setStartTime(slot.startTime);
-    setEndTime(slot.endTime);
-    setDescription(slot.description);
-    setShowForm(true); // Open the form
-  };
+  function openCreateForm() {
+    setSlotBeingEdited(null);
+    setInputDate("");
+    setInputStartTime("");
+    setInputEndTime("");
+    setInputDescription("");
+    setIsFormOpen(true);
+  }
 
-  // Submit availability (handles both creation and editing)
- const handleSubmit = async (e: React.FormEvent) => {
-   e.preventDefault()
+  function openEditForm(slot: TimeSlot) {
+    setSlotBeingEdited(slot);
+    setInputDate(slot.date);
+    setInputStartTime(slot.startTime);
+    setInputEndTime(slot.endTime);
+    setInputDescription(slot.description);
+    setIsFormOpen(true);
+  }
 
-   // Determine HTTP method and URL based on whether we are editing or creating
-   const method = editingSlot ? 'PUT' : 'POST'
-   const url = editingSlot
-     ? `/api/availability/${editingSlot.id}`
-     : '/api/availability'
+  function closeForm() {
+    setIsFormOpen(false);
+    setSlotBeingEdited(null);
+    setInputDate("");
+    setInputStartTime("");
+    setInputEndTime("");
+    setInputDescription("");
+  }
 
-   try {
-     // Create request body - include user_id for both create and edit operations
-     const requestBody = {
-       date,
-       startTime,
-       endTime,
-       description,
-       user_id: user?.id, // Add user_id to ensure we're updating the correct user's slot
-     }
+  async function saveTimeSlot(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-     const res = await fetch(url, {
-       method: method,
-       headers: {
-         'Content-Type': 'application/json',
-       },
-       body: JSON.stringify(requestBody), // Use the requestBody object
-       credentials: 'include',
-     })
+    const isEditing = slotBeingEdited !== null;
+    const method = isEditing ? 'PUT' : 'POST';
+    const url = isEditing 
+      ? `/api/availability/${slotBeingEdited.id}` 
+      : '/api/availability';
 
-     if (!res.ok) {
-       const errorData = await res.json()
-       throw new Error(errorData.message || `HTTP error! status: ${res.status}`)
-     }
+    try {
+      const dataToSend = {
+        date: inputDate,
+        startTime: inputStartTime,
+        endTime: inputEndTime,
+        description: inputDescription,
+        user_id: currentUser?.id,
+      };
 
-     const data = await res.json()
-     console.log('API response:', data)
+      const response = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend),
+        credentials: 'include',
+      });
 
-     // Refresh slots after successful operation
-     if (user?.id) {
-       await fetchSlots(user.id)
-     }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
 
-     // Reset form states and close form after successful submission
-     setDate('')
-     setStartTime('')
-     setEndTime('')
-     setDescription('')
-     setEditingSlot(null) // Clear editing slot state
-     setShowForm(false)
-   } catch (error) {
-     console.error('Error submitting availability:', error)
-     alert(`Failed to save availability: ${(error as Error).message}`)
-   }
- }
-  // Share slot handler
-  const handleShare = (userId: number | undefined) => {
-    if (!userId) {
-        alert("User ID not found. Please log in again.");
-        return;
+      const result = await response.json();
+      console.log('Save successful:', result);
+
+      if (currentUser?.id) {
+        await getUserTimeSlots(currentUser.id);
+      }
+
+      closeForm();
+      
+    } catch (error) {
+      console.error('Save failed:', error);
+      if (error instanceof Error) {
+        alert(`Failed to save: ${error.message}`);
+      } else {
+        alert('Failed to save: An unknown error occurred.');
+      }
     }
-    const bookingUrl = `${window.location.origin}/booking/user/${userId}`;
+  }
+
+  function shareBookingLink(userId: number | undefined) {
+    if (!userId) {
+      alert("User ID not found. Please log in again.");
+      return;
+    }
+    
+    const bookingLink = `${window.location.origin}/booking/user/${userId}`;
+    
     const tempInput = document.createElement('input');
-    tempInput.value = bookingUrl;
+    tempInput.value = bookingLink;
     document.body.appendChild(tempInput);
     tempInput.select();
     document.execCommand('copy');
     document.body.removeChild(tempInput);
-    alert(`Booking link copied to clipboard:\n${bookingUrl}`);
-  };
+    
+    alert(`Booking link copied to clipboard:\n${bookingLink}`);
+  }
 
-  // --- NEW: Handle Delete Button Click ---
-  const handleDeleteClick = (slotId: number) => {
-    setSlotToDeleteId(slotId);
-    setShowDeleteConfirm(true); // Show the confirmation modal
-  };
+  function showDeleteConfirmation(slotId: number) {
+    setSlotToDelete(slotId);
+    setIsDeletePopupOpen(true);
+  }
 
-  // --- NEW: Confirm Delete Function ---
-  const confirmDelete = async () => {
-    if (slotToDeleteId === null) return; // Should not happen if modal is shown correctly
+  async function deleteTimeSlot() {
+    if (!slotToDelete) return;
 
     try {
-      const res = await fetch(`/api/availability/${slotToDeleteId}`, {
+      const response = await fetch(`/api/availability/${slotToDelete}`, {
         method: 'DELETE',
-        credentials: 'include' // Send userId cookie
+        credentials: 'include'
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Server error: ${response.status}`);
       }
 
-      console.log(`Slot ${slotToDeleteId} deleted successfully.`);
-      // Refresh slots after deletion
-      if (user?.id) {
-        await fetchSlots(user.id);
+      console.log(`Slot ${slotToDelete} deleted successfully`);
+      
+      if (currentUser?.id) {
+        await getUserTimeSlots(currentUser.id);
       }
-      setShowDeleteConfirm(false); // Close modal
-      setSlotToDeleteId(null); // Clear ID
+      
+      setIsDeletePopupOpen(false);
+      setSlotToDelete(null);
+      
     } catch (error) {
-      console.error("Error deleting availability:", error);
-      alert(`Failed to delete availability: ${(error as Error).message}`);
-      setShowDeleteConfirm(false); // Close modal even on error
-      setSlotToDeleteId(null); // Clear ID
+      console.error("Delete failed:", error);
+      if (error instanceof Error) {
+        alert(`Failed to delete: ${error.message}`);
+      } else {
+        alert('Failed to delete: An unknown error occurred.');
+      }
+      setIsDeletePopupOpen(false);
+      setSlotToDelete(null);
     }
-  };
+  }
 
-  // --- NEW: Cancel Delete Function ---
-  const cancelDelete = () => {
-    setShowDeleteConfirm(false);
-    setSlotToDeleteId(null);
-  };
+  function cancelDelete() {
+    setIsDeletePopupOpen(false);
+    setSlotToDelete(null);
+  }
 
-  if (loading) return null;
+  if (isPageLoading) return null;
+
+  const filteredSlots = getFilteredSlots();
 
   return (
     <>
       <div className="min-h-screen bg-gray-100 font-sans">
-        {/* Navbar */}
+        
         <nav className="bg-white shadow px-6 py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-0">
+          
           <div className="text-xl font-bold text-blue-600">📅 MyBooking</div>
 
           <div className="flex gap-3">
-            <button
-              onClick={() => {
-                setEditingSlot(null); // Ensure no slot is being edited when creating new
-                setDate(""); // Clear form fields
-                setStartTime("");
-                setEndTime("");
-                setDescription("");
-                setShowForm(true); // Open the form
-              }}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition duration-200 text-sm sm:text-base shadow-md"
-            >
-              Create Availability
-            </button>
-            <button
-              onClick={() => router.push("/view-bookings")}
-              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition duration-200 text-sm sm:text-base shadow-md"
-            >
-              View Bookings
-            </button>
+          <button
+  onClick={openCreateForm}
+  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-500 transition duration-200 text-sm sm:text-base shadow-md"
+>
+  Create Availability
+</button>
+
+          <button
+  onClick={() => router.push("/view-bookings")}
+  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-500 transition duration-200 text-sm sm:text-base shadow-md"
+>
+  View Bookings
+</button>
+
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-gray-700 font-medium">{user?.full_name || "User"}</span>
-            <button
-              onClick={handleLogout}
-              className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition duration-200 text-sm sm:text-base shadow-md"
-            >
-              Logout
-            </button>
+            <span className="text-gray-700 font-medium">
+              {currentUser?.full_name || "User"}
+            </span>
+  <button
+  onClick={logUserOut}
+  className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-400 to-red-500 text-white font-medium hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-md hover:shadow-lg text-sm sm:text-base"
+>
+  Logout
+</button>
+
           </div>
         </nav>
-
-        {/* Availability section */}
         <div className="p-6">
-          {/* ✅ NEW: Title with Filter Dropdown */}
+          
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold text-gray-800">Your Availability</h2>
             
-            {/* ✅ NEW: Filter Dropdown */}
             <div className="relative">
-              {/* Dropdown Button */}
               <button
-                onClick={toggleDropdown}
+                onClick={toggleFilterDropdown}
                 className="bg-white border border-gray-300 rounded-lg px-4 py-2 flex items-center gap-2 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {/* Show current filter text */}
                 <span className="text-gray-700 font-medium">
-                  {filter === 'all' && 'All'}
-                  {filter === 'booked' && 'Booked'}
-                  {filter === 'available' && 'Available'}
+                  {selectedFilter === 'all' && 'All'}
+                  {selectedFilter === 'booked' && 'Booked'}
+                  {selectedFilter === 'available' && 'Available'}
                 </span>
-                {/* Arrow that rotates when dropdown opens */}
-                <span className={`text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>
-                  ▼
+                <span className={`text-gray-500 transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`}>
+                  Filter
                 </span>
               </button>
               
-              {/* Dropdown Menu - Only shows when dropdownOpen is true */}
-              {dropdownOpen && (
+              {isFilterDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                  {/* All Option */}
                   <button
-                    onClick={() => handleFilterChange('all')}
+                    onClick={() => changeFilter('all')}
                     className={`w-full text-left px-4 py-2 hover:bg-gray-50 first:rounded-t-lg ${
-                      filter === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                      selectedFilter === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
                     }`}
                   >
                     All
                   </button>
-                  
-                  {/* Booked Option */}
                   <button
-                    onClick={() => handleFilterChange('booked')}
+                    onClick={() => changeFilter('booked')}
                     className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${
-                      filter === 'booked' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                      selectedFilter === 'booked' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
                     }`}
                   >
                     Booked
                   </button>
-                  
-                  {/* Available Option */}
                   <button
-                    onClick={() => handleFilterChange('available')}
+                    onClick={() => changeFilter('available')}
                     className={`w-full text-left px-4 py-2 hover:bg-gray-50 last:rounded-b-lg ${
-                      filter === 'available' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
+                      selectedFilter === 'available' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
                     }`}
                   >
                     Available
@@ -336,15 +344,16 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ✅ MODIFIED: Use filteredSlots instead of slots */}
           {filteredSlots.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredSlots.map((slot: Slot) => (
-                <div key={slot.id} className={`shadow-lg p-6 rounded-lg border relative ${
-                  slot.isBooked ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
-                }`}>
+              {filteredSlots.map((slot: TimeSlot) => (
+                <div 
+                  key={slot.id} 
+                  className={`shadow-lg p-6 rounded-lg border relative ${
+                    slot.isBooked ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+                  }`}
+                >
                   
-                  {/* Booked/Available indicator */}
                   {slot.isBooked ? (
                     <div className="absolute top-2 right-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
                       BOOKED
@@ -355,31 +364,41 @@ export default function DashboardPage() {
                     </div>
                   )}
                   
-                  <p className="mb-2"><strong className="text-gray-700">Date:</strong> <span className="text-gray-900">{slot.date}</span></p>
-                  <p className="mb-2"><strong className="text-gray-700">Start:</strong> <span className="text-gray-900">{slot.startTime}</span></p>
-                  <p className="mb-2"><strong className="text-gray-700">End:</strong> <span className="text-gray-900">{slot.endTime}</span></p>
-                  <p className="mb-4"><strong className="text-gray-700">Description:</strong> <span className="text-gray-900">{slot.description}</span></p>
+                  <p className="mb-2">
+                    <strong className="text-gray-700">Date:</strong> 
+                    <span className="text-gray-900"> {slot.date}</span>
+                  </p>
+                  <p className="mb-2">
+                    <strong className="text-gray-700">Start:</strong> 
+                    <span className="text-gray-900"> {slot.startTime}</span>
+                  </p>
+                  <p className="mb-2">
+                    <strong className="text-gray-700">End:</strong> 
+                    <span className="text-gray-900"> {slot.endTime}</span>
+                  </p>
+                  <p className="mb-4">
+                    <strong className="text-gray-700">Description:</strong> 
+                    <span className="text-gray-900"> {slot.description}</span>
+                  </p>
                   
                   <div className="flex gap-3 mt-4">
-                    {/* Always show Share button */}
                     <button
-                      onClick={() => handleShare(user?.id)}
+                      onClick={() => shareBookingLink(currentUser?.id)}
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200 text-sm shadow-md"
                     >
                       {slot.isBooked ? 'View Link' : 'Share'}
                     </button>
                     
-                    {/* Only show Edit and Delete buttons if slot is NOT booked */}
                     {!slot.isBooked && (
                       <>
                         <button
-                          onClick={() => handleEdit(slot)}
+                          onClick={() => openEditForm(slot)}
                           className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition duration-200 text-sm shadow-md"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteClick(slot.id)}
+                          onClick={() => showDeleteConfirmation(slot.id)}
                           className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-200 text-sm shadow-md"
                         >
                           Delete
@@ -392,29 +411,21 @@ export default function DashboardPage() {
             </div>
           ) : (
             <p className="text-gray-600 text-lg">
-              {/* ✅ NEW: Dynamic message based on filter */}
-              {filter === 'all' 
+              {selectedFilter === 'all' 
                 ? "No availability slots yet. Click 'Create Availability' to add one!" 
-                : `No ${filter} slots found.`
+                : `No ${selectedFilter} slots found.`
               }
             </p>
           )}
         </div>
       </div>
 
-      {/* Form Modal (Create/Edit) */}
-      {showForm && (
+      {isFormOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md relative animate-fade-in-up">
+            
             <button
-              onClick={() => {
-                setShowForm(false);
-                setEditingSlot(null); // Clear editing state when closing form
-                setDate(""); // Clear form fields
-                setStartTime("");
-                setEndTime("");
-                setDescription("");
-              }}
+              onClick={closeForm}
               className="absolute top-3 right-3 text-gray-500 hover:text-red-600 text-2xl font-bold transition duration-200"
               aria-label="Close"
             >
@@ -422,53 +433,62 @@ export default function DashboardPage() {
             </button>
 
             <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-              {editingSlot ? "Edit Availability Slot" : "Set Your Availability"}
+              {slotBeingEdited ? "Edit Availability Slot" : "Set Your Availability"}
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={saveTimeSlot} className="space-y-5">
+              
               <div>
-                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+                  Date
+                </label>
                 <input
                   type="date"
                   id="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  value={inputDate}
+                  onChange={(e) => setInputDate(e.target.value)}
                   required
                   className="w-full border border-gray-300 p-3 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
                 />
               </div>
 
               <div>
-                <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Time
+                </label>
                 <input
                   type="time"
                   id="startTime"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  value={inputStartTime}
+                  onChange={(e) => setInputStartTime(e.target.value)}
                   required
                   className="w-full border border-gray-300 p-3 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
                 />
               </div>
 
               <div>
-                <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
+                  End Time
+                </label>
                 <input
                   type="time"
                   id="endTime"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  value={inputEndTime}
+                  onChange={(e) => setInputEndTime(e.target.value)}
                   required
                   className="w-full border border-gray-300 p-3 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
                 />
               </div>
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
                 <input
                   type="text"
                   id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={inputDescription}
+                  onChange={(e) => setInputDescription(e.target.value)}
                   required
                   className="w-full border border-gray-300 p-3 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
                 />
@@ -478,24 +498,28 @@ export default function DashboardPage() {
                 type="submit"
                 className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200 font-semibold text-lg shadow-md"
               >
-                {editingSlot ? "Update Availability" : "Save Availability"}
+                {slotBeingEdited ? "Update Availability" : "Save Availability"}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* NEW: Delete Confirmation Modal */}
-      {showDeleteConfirm && (
+      {isDeletePopupOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm relative animate-fade-in-up">
-            <h2 className="text-xl font-bold mb-4 text-center text-gray-800">Confirm Deletion</h2>
+            
+            <h2 className="text-xl font-bold mb-4 text-center text-gray-800">
+              Confirm Deletion
+            </h2>
+            
             <p className="text-gray-700 mb-6 text-center">
-              Are you sure you want to delete this availability slot? This action cannot be undone.
+              Are you sure you want to delete this availability slot? This action cannot be visible.
             </p>
+            
             <div className="flex justify-center gap-4">
               <button
-                onClick={confirmDelete}
+                onClick={deleteTimeSlot}
                 className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-200 font-semibold shadow-md"
               >
                 Delete
