@@ -11,7 +11,7 @@ export async function saveAvailability(
 ) {
   const inserted = await db.insert(availability).values({
     userId,
-    availableDate: date,
+    date,
     startTime,
     endTime,
     description
