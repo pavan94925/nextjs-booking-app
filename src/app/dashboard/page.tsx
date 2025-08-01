@@ -139,7 +139,7 @@ export default function DashboardPage() {
     setInputDescription("");
   }
 
-  async function saveTimeSlot(event: React.FormEvent<HTMLFormElement>) {
+  async function saveTimeSlot(event: any) {
     event.preventDefault();
 
     const isEditing = slotBeingEdited !== null;
