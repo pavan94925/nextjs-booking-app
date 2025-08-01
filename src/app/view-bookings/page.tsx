@@ -2,6 +2,18 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+interface SlotInfo {
+  date: string
+  startTime: string
+  endTime: string
+  description: string
+}
+
+interface User {
+  id: number
+  full_name: string
+}
+
 interface Booking {
   id: number
   availabilityId: number
@@ -9,21 +21,16 @@ interface Booking {
   bookedByEmail: string
   startTime: string
   createdAt: string
-  slotInfo?: {
-    date: string
-    startTime: string
-    endTime: string
-    description: string
-  }
+  slotInfo?: SlotInfo
 }
 
 export default function ViewBookingsPage() {
   const router = useRouter()
-  
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [bookings, setBookings] = useState([])
-  const [error, setError] = useState(null)
+
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -34,7 +41,7 @@ export default function ViewBookingsPage() {
           return
         }
 
-        const userData = JSON.parse(storedUser)
+        const userData: User = JSON.parse(storedUser)
         setUser(userData)
 
         if (!userData.id) {
@@ -53,13 +60,14 @@ export default function ViewBookingsPage() {
         console.log('Got bookings:', data)
 
         setBookings(data.bookings || [])
-        
       } catch (err) {
         console.error('Error loading data:', err)
-        setError(`Failed to load bookings: ${err.message}`)
+        const errorMessage =
+          err instanceof Error ? err.message : 'Unknown error occurred'
+        setError(`Failed to load bookings: ${errorMessage}`)
 
         // If user data is bad go back to login
-        if (err.message.includes('User ID not found')) {
+        if (errorMessage.includes('User ID not found')) {
           localStorage.removeItem('user')
           router.replace('/login')
         }
@@ -75,6 +83,7 @@ export default function ViewBookingsPage() {
     localStorage.removeItem('user')
     router.replace('/login')
   }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -82,6 +91,7 @@ export default function ViewBookingsPage() {
       </div>
     )
   }
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -103,6 +113,7 @@ export default function ViewBookingsPage() {
       </div>
     )
   }
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans">
       <nav className="bg-white shadow px-6 py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-0">
@@ -151,7 +162,7 @@ export default function ViewBookingsPage() {
                   <strong className="text-gray-700">Email:</strong>{' '}
                   <span className="text-gray-900">{booking.bookedByEmail}</span>
                 </p>
-                
+
                 <p className="mb-2">
                   <strong className="text-gray-700">Booking Time:</strong>{' '}
                   <span className="text-gray-900">{booking.startTime}</span>
@@ -162,13 +173,13 @@ export default function ViewBookingsPage() {
                       Original Availability Slot:
                     </p>
                     <p className="text-sm text-gray-800">
-                       {booking.slotInfo.date}
+                      {booking.slotInfo.date}
                     </p>
                     <p className="text-sm text-gray-800">
-                       {booking.slotInfo.startTime} - {booking.slotInfo.endTime}
+                      {booking.slotInfo.startTime} - {booking.slotInfo.endTime}
                     </p>
                     <p className="text-sm text-gray-800">
-                       {booking.slotInfo.description}
+                      {booking.slotInfo.description}
                     </p>
                   </div>
                 )}
@@ -180,7 +191,6 @@ export default function ViewBookingsPage() {
             ))}
           </div>
         ) : (
-        
           <div className="text-center py-12">
             <p className="text-gray-600 text-lg mb-4">
               No bookings have been made for your availability slots yet.

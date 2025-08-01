@@ -8,7 +8,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateForm = () => {
-    const newErrors = {};
+    const newErrors: Record<string, string> = {};
 
     if (!fullName.trim()) {
       newErrors.fullName = "Full name is required";
@@ -48,7 +48,7 @@ export default function RegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e:any) => {
     e.preventDefault();
     setMessage("");
     setErrors({});
@@ -82,28 +82,28 @@ export default function RegisterPage() {
     }
   };
 
-  const handleFullNameChange = (e) => {
+  const handleFullNameChange = (e:any) => {
     setFullName(e.target.value);
     if (errors.fullName) {
       setErrors({ ...errors, fullName: "" });
     }
   };
 
-  const handleEmailChange = (e) => {
+  const handleEmailChange = (e:any) => {
     setEmail(e.target.value.toLowerCase());
     if (errors.email) {
       setErrors({ ...errors, email: "" });
     }
   };
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = (e:any) => {
     setPassword(e.target.value);
     if (errors.password) {
       setErrors({ ...errors, password: "" });
     }
   };
 
-  const handleConfirmPasswordChange = (e) => {
+  const handleConfirmPasswordChange = (e:any) => {
     setConfirmPassword(e.target.value);
     if (errors.confirmPassword) {
       setErrors({ ...errors, confirmPassword: "" });

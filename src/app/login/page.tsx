@@ -8,19 +8,23 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
-  const [errors, setErrors] = useState({})
+  type Errors = {
+    email?: string
+    password?: string
+  }
+  const [errors, setErrors] = useState<Errors>({})
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
 
  
-  const isValidEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
+  const isValidEmail = (email: string) => {
+    // Simple email validation regex
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
   const validateForm = () => {
-    const newErrors = {}
+    const newErrors: Errors = {}
 
     if (!email) {
       newErrors.email = 'Email is required'
@@ -38,7 +42,7 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e:any) => {
     e.preventDefault()
     setMessage('')
     setErrors({}) 
@@ -67,14 +71,14 @@ export default function LoginPage() {
     }
   }
 
-  const handleEmailChange = (e) => {
+  const handleEmailChange = (e:any) => {
     setEmail(e.target.value.toLowerCase())
     if (errors.email) {
       setErrors({ ...errors, email: '' })
     }
   }
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = (e:any) => {
     setPassword(e.target.value)
     if (errors.password) {
       setErrors({ ...errors, password: '' })

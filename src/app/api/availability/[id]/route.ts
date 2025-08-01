@@ -5,7 +5,7 @@ import { availability } from "@/lib/drizzle/schema";
 import { eq, and } from "drizzle-orm";
 
 // EDIT  slot
-export async function PUT(req, { params }) {
+export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const cookieStore = cookies();
   const userId = (await cookieStore).get('userId')?.value;
   
@@ -72,16 +72,19 @@ export async function PUT(req, { params }) {
   } catch (error) {
     console.error('Something went wrong while updating:', error);
     return NextResponse.json(
-      { 
-        message: 'Failed to update slot', 
-        error: error.message 
+      {
+        message: 'Failed to update slot',
+        error:
+          typeof error === 'object' && error !== null && 'message' in error
+            ? (error as { message: string }).message
+            : String(error),
       },
       { status: 500 }
-    );
+    )
   }
 }
 
-export async function DELETE(req, { params }) {
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const cookieStore = cookies();
   const userId = (await cookieStore).get('userId')?.value;
   
@@ -127,7 +130,7 @@ export async function DELETE(req, { params }) {
     return NextResponse.json(
       { 
         message: 'Failed to delete slot', 
-        error: error.message 
+        error: typeof error === 'object' && error !== null && 'message' in error ? (error as { message: string }).message : String(error)
       },
       { status: 500 }
     );
