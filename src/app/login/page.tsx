@@ -19,7 +19,7 @@ export default function LoginPage() {
 
  
   const isValidEmail = (email: string) => {
-    // Simple email validation regex
+    // Simple email validation 
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
