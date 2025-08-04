@@ -42,7 +42,7 @@ const formatDisplayDate = (dateString: string): string => {
 
 const formatDisplayTime = (timeString: string): string => {
   try {
-    const date = new Date(`1970-01-01T${timeString}`) // dummy date with UTC time
+    const date = new Date(`1970-01-01T${timeString}`) 
     return isNaN(date.getTime())
       ? 'Not specified'
       : date.toLocaleTimeString('en-US', {
@@ -83,7 +83,7 @@ export default function ViewBookingsPage() {
         }
 
         const result = await getUserBookings(String(userData.id))
-        console.log('API Response:', result) // Debug log
+        console.log('API Response:', result) 
 
         if (result?.success) {
           setBookings(result.bookings || [])

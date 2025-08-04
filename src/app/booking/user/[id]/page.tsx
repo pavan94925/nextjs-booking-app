@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getAvailabilitySlots } from '@/actions/availabilityActions'
 import { createBooking } from '@/actions/bookingActions'
-import { validateEmail } from '@/lib/utils' // Create this utility function
+import { validateEmail } from '@/lib/utils' 
 
 interface AvailabilitySlot {
   id: number
@@ -92,7 +92,6 @@ export default function BookUserPage() {
       alert('Booking confirmed successfully!')
       router.refresh() // Refresh to show updated availability
       
-      // Reset form
       setSelectedAvailabilityId(null)
       setBookedByName('')
       setBookedByEmail('')

@@ -31,7 +31,7 @@ interface UserBooking {
 
 export async function createBooking(bookingData: BookingData) {
   try {
-    // Validate inputs
+    // Validate 
     if (!bookingData.availabilityId || isNaN(bookingData.availabilityId)) {
       throw new Error('Invalid availability slot')
     }

@@ -2,7 +2,7 @@
 import { db } from '@/lib/drizzle/db'
 import { availability, bookings } from '@/lib/drizzle/schema'
 import { eq, and, inArray } from 'drizzle-orm'
-import { getUserSession } from '@/lib/drizzle/session'
+
 
 export async function getAvailabilitySlots(
   userId: string,
@@ -20,7 +20,7 @@ export async function getAvailabilitySlots(
 
   const slotIds = slots.map((slot) => slot.id)
 
-  // Find booked slot IDs
+  // Find booked slot ids
   let bookedSlotIds: number[] = []
   if (slotIds.length > 0) {
     const booked = await db

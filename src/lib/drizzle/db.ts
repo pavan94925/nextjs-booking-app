@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-// Only create connection if we're on the server
+// Only create connection if we are  in the server
 if (typeof window !== 'undefined') {
   throw new Error(
     'Database operations should only be performed on the server side'

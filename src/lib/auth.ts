@@ -1,3 +1,5 @@
+//security perpous i used token
+
 import { SignJWT } from 'jose'
 import { NextResponse } from 'next/server'
 
