@@ -1,6 +1,8 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { getUserBookings } from '@/actions/bookingActions'
 
 interface SlotInfo {
   date: string
@@ -11,7 +13,7 @@ interface SlotInfo {
 
 interface User {
   id: number
-  full_name: string
+  full_name?: string
 }
 
 interface Booking {
@@ -23,18 +25,50 @@ interface Booking {
   createdAt: string
   slotInfo?: SlotInfo
 }
+const formatDisplayDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString)
+    return isNaN(date.getTime())
+      ? 'Not specified'
+      : date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+  } catch {
+    return 'Not specified'
+  }
+}
+
+const formatDisplayTime = (timeString: string): string => {
+  try {
+    const date = new Date(`1970-01-01T${timeString}`) // dummy date with UTC time
+    return isNaN(date.getTime())
+      ? 'Not specified'
+      : date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        })
+  } catch {
+    return 'Not specified'
+  }
+}
+
 
 export default function ViewBookingsPage() {
   const router = useRouter()
-
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
+  const [loading, setLoading] = useState(true)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Check if we're running on client side
+        if (typeof window === 'undefined') return
+
         const storedUser = localStorage.getItem('user')
         if (!storedUser) {
           router.replace('/login')
@@ -48,25 +82,20 @@ export default function ViewBookingsPage() {
           throw new Error('User ID not found')
         }
 
-        const response = await fetch(`/api/booking?user_id=${userData.id}`, {
-          credentials: 'include',
-        })
+        const result = await getUserBookings(String(userData.id))
+        console.log('API Response:', result) // Debug log
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch bookings: ${response.status}`)
+        if (result?.success) {
+          setBookings(result.bookings || [])
+        } else {
+          throw new Error(result?.message || 'Failed to load bookings')
         }
-
-        const data = await response.json()
-        console.log('Got bookings:', data)
-
-        setBookings(data.bookings || [])
       } catch (err) {
         console.error('Error loading data:', err)
         const errorMessage =
           err instanceof Error ? err.message : 'Unknown error occurred'
         setError(`Failed to load bookings: ${errorMessage}`)
 
-        // If user data is bad go back to login
         if (errorMessage.includes('User ID not found')) {
           localStorage.removeItem('user')
           router.replace('/login')
@@ -142,11 +171,6 @@ export default function ViewBookingsPage() {
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
           Bookings for Your Availability
         </h2>
-        <div className="mb-4 p-3 bg-yellow-100 rounded-md">
-          <p className="text-sm text-gray-700">
-            Debug: Found {bookings.length} bookings for user {user?.id}
-          </p>
-        </div>
         {bookings.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {bookings.map((booking) => (
@@ -154,39 +178,27 @@ export default function ViewBookingsPage() {
                 key={booking.id}
                 className="bg-white shadow-lg p-6 rounded-lg border border-gray-200"
               >
-                <p className="mb-2">
-                  <strong className="text-gray-700">Booked By:</strong>{' '}
-                  <span className="text-gray-900">{booking.bookedByName}</span>
+                <h3 className="text-lg font-semibold mb-2">
+                  {booking.bookedByName}
+                </h3>
+                <p className="text-gray-600 mb-1">
+                  <span className="font-medium">Email:</span>{' '}
+                  {booking.bookedByEmail}
                 </p>
-                <p className="mb-2">
-                  <strong className="text-gray-700">Email:</strong>{' '}
-                  <span className="text-gray-900">{booking.bookedByEmail}</span>
+                <p className="text-gray-600 mb-1">
+                  <span className="font-medium">Date:</span>{' '}
+                  {formatDisplayDate(booking.slotInfo?.date || '')}
                 </p>
-
-                <p className="mb-2">
-                  <strong className="text-gray-700">Booking Time:</strong>{' '}
-                  <span className="text-gray-900">{booking.startTime}</span>
+                <p className="text-gray-600 mb-1">
+                  <span className="font-medium">Time:</span>{' '}
+                  {formatDisplayTime(booking.startTime || '')}
                 </p>
-                {booking.slotInfo && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-sm text-gray-600">
-                      Original Availability Slot:
-                    </p>
-                    <p className="text-sm text-gray-800">
-                      {booking.slotInfo.date}
-                    </p>
-                    <p className="text-sm text-gray-800">
-                      {booking.slotInfo.startTime} - {booking.slotInfo.endTime}
-                    </p>
-                    <p className="text-sm text-gray-800">
-                      {booking.slotInfo.description}
-                    </p>
-                  </div>
+                {booking.slotInfo?.description && (
+                  <p className="text-gray-600">
+                    <span className="font-medium">Description:</span>{' '}
+                    {booking.slotInfo.description}
+                  </p>
                 )}
-
-                <p className="mt-4 text-xs text-gray-500">
-                  Booked on: {new Date(booking.createdAt).toLocaleString()}
-                </p>
               </div>
             ))}
           </div>
@@ -207,3 +219,39 @@ export default function ViewBookingsPage() {
     </div>
   )
 }
+
+
+// {
+//   "success": true, "bookings":
+//   [{
+//     "id": 14, "availabilityId": 30,
+//     "bookedByName": "naveen", "bookedByEmail": "naveen@gmail.com",
+//     "startTime": "02:12:00", "createdAt": "2025-08-04T04:43:01.160Z",
+//     "slotInfo": {
+//       "date": "2025-08-12",
+//       "startTime": "02:39:00",
+//       "endTime": "04:39:00",
+//       "description": "class"
+//     }
+//   }, {
+//     "id": 15, "availabilityId": 30,
+//     "bookedByName": "rakesh", "bookedByEmail": "rakesh@gmail.com",
+//     "startTime": "04:39:00", "createdAt": "2025-08-04T04:48:25.847Z",
+//     "slotInfo": {
+//       "date": "2025-08-12",
+//       "startTime": "02:39:00",
+//       "endTime": "04:39:00",
+//       "description": "class"
+//     }
+//   }, {
+//     "id": 16, "availabilityId": 32,
+//     "bookedByName": "sadhik", "bookedByEmail": "sadhik@gmail.com",
+//     "startTime": "14:37:00", "createdAt": "2025-08-04T05:08:02.836Z",
+//     "slotInfo": {
+//       "date": "2025-08-06",
+//       "startTime": "14:37:00",
+//       "endTime": "15:37:00",
+//       "description": "demo"
+//     }
+//   }]
+// }

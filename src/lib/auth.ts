@@ -1,18 +1,21 @@
-import { SignJWT } from "jose";
-import { cookies } from "next/headers";
+import { SignJWT } from 'jose'
+import { NextResponse } from 'next/server'
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+const secret = new TextEncoder().encode(process.env.JWT_SECRET)
 
-export async function setUserSession(userId: string) {
-  const token = await new SignJWT({ userId })
-    .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("7d")
-    .sign(secret);
+export async function POST() {
+  const token = await new SignJWT({ userId: '123' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('7d')
+    .sign(secret)
 
-  cookies().set("userId", token, {
-    path: "/",
+  const response = NextResponse.json({ success: true })
+  response.cookies.set('userId', token, {
+    path: '/',
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  })
+
+  return response
 }

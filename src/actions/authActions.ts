@@ -1,6 +1,5 @@
 "use server";
 
-import { sql } from "drizzle-orm";
 import { db } from "@/lib/drizzle/db";
 import { user_profiles } from "@/lib/drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -87,7 +86,8 @@ export async function resetPassword(email: string, newPassword: string) {
     .where(eq(user_profiles.email, email))
     .then(res => res[0]);
 
-  if (!user) return { error: "No account with that email" };
+  if (!user)
+    return { error: "No account with that email" };
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 

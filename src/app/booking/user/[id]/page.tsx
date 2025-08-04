@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
+import { getAvailabilitySlots } from '@/actions/availabilityActions'
+import { createBooking } from '@/actions/bookingActions'
+import { validateEmail } from '@/lib/utils' // Create this utility function
 
 interface AvailabilitySlot {
   id: number
@@ -12,122 +15,113 @@ interface AvailabilitySlot {
 }
 
 export default function BookUserPage() {
+  const router = useRouter()
   const params = useParams()
-
-  console.log('useParams() result:', params)
-
-  
-  const userId = params && typeof params.id === 'string' ? params.id : null
+  const userId = params?.id as string | undefined
 
   const [availableSlots, setAvailableSlots] = useState<AvailabilitySlot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  const [selectedAvailabilityId, setSelectedAvailabilityId] = useState<
-    number | null
-  >(null)
+  const [selectedAvailabilityId, setSelectedAvailabilityId] = useState<number | null>(null)
   const [bookedByName, setBookedByName] = useState('')
   const [bookedByEmail, setBookedByEmail] = useState('')
   const [bookingDate, setBookingDate] = useState('')
   const [bookingTime, setBookingTime] = useState('')
 
   useEffect(() => {
-
     if (!userId) {
-      console.log(
-        'useEffect: userId is not yet available or valid. Skipping fetch.'
-      )
-      setError('User ID not provided in the URL or could not be extracted.')
+      setError('Invalid user ID')
       setLoading(false)
       return
     }
 
-    console.log('useEffect: Valid userId found:', userId)
-
     const fetchAvailableSlots = async () => {
-      setLoading(true)
-      setError(null)
       try {
-        const res = await fetch(`/api/availability?user_id=${userId}&exclude_booked=true`)
-        if (!res.ok) {
-          const errorText = await res.text()
-          throw new Error(
-            `Failed to fetch availability: ${res.status} - ${errorText}`
-          )
-        }
-        const data = await res.json()
-        setAvailableSlots(data.slots || [])
+        const slots = await getAvailabilitySlots(userId, true)
+        setAvailableSlots(slots)
       } catch (err) {
-        console.error('Error fetching available slots:', err)
-        setError(`Failed to load available slots: ${(err as Error).message}`)
+        console.error('Error fetching slots:', err)
+        setError('Failed to load available slots. Please try again later.')
       } finally {
         setLoading(false)
       }
     }
 
     fetchAvailableSlots()
-  }, [userId]) 
+  }, [userId])
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {}
+    
+    if (!selectedAvailabilityId) {
+      errors.availability = 'Please select a time slot'
+    }
+    if (!bookedByName.trim()) {
+      errors.name = 'Name is required'
+    }
+    if (!validateEmail(bookedByEmail)) {
+      errors.email = 'Please enter a valid email'
+    }
+    if (!bookingDate) {
+      errors.date = 'Date is required'
+    }
+    if (!bookingTime) {
+      errors.time = 'Time is required'
+    }
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!selectedAvailabilityId) {
-      alert('Please select an availability slot to book.')
-      return
-    }
+    
+    if (!validateForm()) return
 
     try {
-      const res = await fetch('/api/booking', {
-        method: 'POST',
-        body: JSON.stringify({
-          availabilityId: selectedAvailabilityId,
-          bookedByName,
-          bookedByEmail,
-          bookingDate,
-          bookingTime,
-        }),
+      await createBooking({
+        availabilityId: selectedAvailabilityId!,
+        bookedByName,
+        bookedByEmail,
+        bookingDate,
+        bookingTime
       })
 
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(
-          errorData.message || `HTTP error! status: ${res.status}`
-        )
-      }
-
-      const data = await res.json()
-      console.log('Booking successful:', data)
-      alert('Your booking has been confirmed!')
-
+      alert('Booking confirmed successfully!')
+      router.refresh() // Refresh to show updated availability
+      
+      // Reset form
       setSelectedAvailabilityId(null)
       setBookedByName('')
       setBookedByEmail('')
       setBookingDate('')
       setBookingTime('')
     } catch (err) {
-      console.error('Booking submission error:', err)
-      alert(`Failed to confirm booking: ${(err as Error).message}`)
+      console.error('Booking error:', err)
+      alert(`Booking failed: ${err instanceof Error ? err.message : 'Please try again'}`)
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-gray-600 text-lg">Loading available slots...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Loading available slots...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-red-600 text-lg">Error: {error}</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-red-500">{error}</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
         <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">
           Book a Time Slot
@@ -135,39 +129,51 @@ export default function BookUserPage() {
 
         {availableSlots.length > 0 ? (
           <>
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              Available Slots:
-            </h2>
-            <ul className="list-disc list-inside mb-6 space-y-2">
-              {availableSlots.map((slot) => (
-                <li key={slot.id} className="text-gray-700">
-                  <label className="inline-flex items-center">
-                    <input
-                      type="radio"
-                      name="availabilitySlot"
-                      value={slot.id}
-                      checked={selectedAvailabilityId === slot.id}
-                      onChange={() => {
-                        setSelectedAvailabilityId(slot.id)
-                        setBookingDate(slot.date) 
-                      }}
-                      className="form-radio h-4 w-4 text-blue-600"
-                    />
-                    <span className="ml-2">
-                      {slot.date} from {slot.startTime} to {slot.endTime} -{' '}
-                      {slot.description}
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">
+                Available Slots
+              </h2>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {availableSlots.map((slot) => (
+                  <div 
+                    key={slot.id} 
+                    className={`p-3 rounded-md border ${
+                      selectedAvailabilityId === slot.id 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="availabilitySlot"
+                        checked={selectedAvailabilityId === slot.id}
+                        onChange={() => {
+                          setSelectedAvailabilityId(slot.id)
+                          setBookingDate(slot.date)
+                        }}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <p className="font-medium">
+                          {slot.date} • {slot.startTime} - {slot.endTime}
+                        </p>
+                        {slot.description && (
+                          <p className="text-sm text-gray-600 mt-1">{slot.description}</p>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {formErrors.availability && (
+                <p className="mt-1 text-sm text-red-500">{formErrors.availability}</p>
+              )}
+            </div>
 
             <form onSubmit={handleBookingSubmit} className="space-y-4">
               <div>
-                <label
-                  htmlFor="bookedByName"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
+                <label htmlFor="bookedByName" className="block text-sm font-medium text-gray-700 mb-1">
                   Your Name
                 </label>
                 <input
@@ -175,16 +181,17 @@ export default function BookUserPage() {
                   id="bookedByName"
                   value={bookedByName}
                   onChange={(e) => setBookedByName(e.target.value)}
-                  required
-                  className="w-full border border-gray-300 p-3 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                  className={`w-full border ${
+                    formErrors.name ? 'border-red-500' : 'border-gray-300'
+                  } p-3 rounded-md focus:ring-blue-500 focus:border-blue-500`}
                 />
+                {formErrors.name && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
+                )}
               </div>
 
               <div>
-                <label
-                  htmlFor="bookedByEmail"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
+                <label htmlFor="bookedByEmail" className="block text-sm font-medium text-gray-700 mb-1">
                   Your Email
                 </label>
                 <input
@@ -192,57 +199,70 @@ export default function BookUserPage() {
                   id="bookedByEmail"
                   value={bookedByEmail}
                   onChange={(e) => setBookedByEmail(e.target.value)}
-                  required
-                  className="w-full border border-gray-300 p-3 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                  className={`w-full border ${
+                    formErrors.email ? 'border-red-500' : 'border-gray-300'
+                  } p-3 rounded-md focus:ring-blue-500 focus:border-blue-500`}
                 />
+                {formErrors.email && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+                )}
               </div>
 
-              <div>
-                <label
-                  htmlFor="bookingDate"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Booking Date
-                </label>
-                <input
-                  type="date"
-                  id="bookingDate"
-                  value={bookingDate}
-                  onChange={(e) => setBookingDate(e.target.value)}
-                  required
-                  className="w-full border border-gray-300 p-3 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="bookingTime"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Booking Time
-                </label>
-                <input
-                  type="time"
-                  id="bookingTime"
-                  value={bookingTime}
-                  onChange={(e) => setBookingTime(e.target.value)}
-                  required
-                  className="w-full border border-gray-300 p-3 rounded-md focus:ring-blue-500 focus:border-blue-500 transition duration-200"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="bookingDate" className="block text-sm font-medium text-gray-700 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    id="bookingDate"
+                    value={bookingDate}
+                    onChange={(e) => setBookingDate(e.target.value)}
+                    className={`w-full border ${
+                      formErrors.date ? 'border-red-500' : 'border-gray-300'
+                    } p-3 rounded-md focus:ring-blue-500 focus:border-blue-500`}
+                  />
+                  {formErrors.date && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.date}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="bookingTime" className="block text-sm font-medium text-gray-700 mb-1">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    id="bookingTime"
+                    value={bookingTime}
+                    onChange={(e) => setBookingTime(e.target.value)}
+                    className={`w-full border ${
+                      formErrors.time ? 'border-red-500' : 'border-gray-300'
+                    } p-3 rounded-md focus:ring-blue-500 focus:border-blue-500`}
+                  />
+                  {formErrors.time && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.time}</p>
+                  )}
+                </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200 font-semibold text-lg shadow-md"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-md transition duration-200 shadow-md"
               >
                 Confirm Booking
               </button>
             </form>
           </>
         ) : (
-          <p className="text-gray-600 text-center">
-            No availability slots found for this user.
-          </p>
+          <div className="text-center py-8">
+            <p className="text-gray-600">No available slots found for this user.</p>
+            <button
+              onClick={() => router.back()}
+              className="mt-4 text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Go back
+            </button>
+          </div>
         )}
       </div>
     </div>
